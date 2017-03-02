@@ -9,6 +9,8 @@ namespace DiscordBot
 
         public async Task Run()
         {
+            var config = Configuration.ReadConfig();
+
             var client = new DiscordClient();
 
             client.MessageReceived += async (s, e) =>
@@ -18,7 +20,7 @@ namespace DiscordBot
             };
 
             client.ExecuteAndWait(async () => {
-                await client.Connect("aaaaabbbbbbcccccdddddeeeeefffffggggg", TokenType.Bot);
+                await client.Connect(config.Token, TokenType.Bot);
             });
 
             // Block this task until the program is exited.
