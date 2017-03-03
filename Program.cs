@@ -1,8 +1,9 @@
-using System;
 using Discord;
+using Discord.Commands;
+using Discord.WebSocket;
 using NLog;
+using System;
 using System.Threading.Tasks;
-using NLog.Fluent;
 
 namespace DiscordBot
 {
@@ -13,29 +14,29 @@ namespace DiscordBot
 
         public async Task Run()
         {
-            _log.Info("Starting up bot");
-
             _log.Info("Reading config");
             var config = Configuration.ReadConfig();
 
-            var client = new DiscordClient();
-            client.Log.Message += logging;
-
-            client.MessageReceived += async (s, e) =>
+            _log.Info("Starting up bot");
+            var client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                if (!e.Message.IsAuthor)
-                    await e.Channel.SendMessage(e.Message.Text);
-            };
-
-            client.ExecuteAndWait(async () => {
-                await client.Connect(config.Token, TokenType.Bot);
+                WebSocketProvider = Discord.Net.Providers.WS4Net.WS4NetProvider.Instance
             });
 
-            // Block this task until the program is exited.
+            await client.LoginAsync(TokenType.Bot, config.Token);
+            await client.StartAsync();
+
+            var map = new DependencyMap();
+            map.Add(client);
+
+            var handler = new CommandHandler();
+            await handler.Install(map);
+
+            // Block this program until it is closed.
             await Task.Delay(-1);
         }
 
-        private static void logging(Object sender, LogMessageEventArgs arg)
+        private static Task logging(LogMessage arg)
         {
             LogLevel level;
 
@@ -56,6 +57,9 @@ namespace DiscordBot
                 case LogSeverity.Error:
                     level = LogLevel.Error;
                     break;
+                case LogSeverity.Critical:
+                    level = LogLevel.Fatal;
+                    break;
                 default:
                     level = LogLevel.Off;
                     break;
@@ -65,6 +69,8 @@ namespace DiscordBot
                 _log.Log(level, arg.Message);
             else
                 _log.Log(level, arg.Exception, arg.Message);
+            
+            return Task.CompletedTask;
         }
     }
 }
